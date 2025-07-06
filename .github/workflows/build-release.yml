@@ -19,23 +19,23 @@ jobs:
       matrix:  
         include:  
           # Linux builds  
-          - os: ubuntu-20.04  
+          - os: ubuntu-22.04  
             platform: linux  
             arch: x64  
             configure_args: --with-debug-level=release  
-          - os: ubuntu-20.04  
+          - os: ubuntu-22.04  
             platform: linux  
             arch: aarch64  
             configure_args: --with-debug-level=release --openjdk-target=aarch64-linux-gnu  
-          - os: ubuntu-20.04  
+          - os: ubuntu-22.04  
             platform: linux  
             arch: arm32  
             configure_args: --with-debug-level=release --openjdk-target=arm-linux-gnueabihf  
-          - os: ubuntu-20.04  
+          - os: ubuntu-22.04  
             platform: linux  
             arch: ppc64le  
             configure_args: --with-debug-level=release --openjdk-target=ppc64le-linux-gnu  
-          - os: ubuntu-20.04  
+          - os: ubuntu-22.04  
             platform: linux  
             arch: s390x  
             configure_args: --with-debug-level=release --openjdk-target=s390x-linux-gnu  
@@ -51,15 +51,15 @@ jobs:
             configure_args: --with-debug-level=release --openjdk-target=aarch64-apple-darwin  
             
           # Windows builds  
-          - os: windows-2019  
+          - os: windows-2025 
             platform: windows  
             arch: x64  
             configure_args: --with-debug-level=release  
-          - os: windows-2019  
+          - os: windows-2025
             platform: windows  
             arch: x86  
             configure_args: --with-debug-level=release --openjdk-target=x86-pc-windows-msvc  
-          - os: windows-2019  
+          - os: windows-2025
             platform: windows  
             arch: aarch64  
             configure_args: --with-debug-level=release --openjdk-target=aarch64-pc-windows-msvc  
