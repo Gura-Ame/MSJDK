@@ -125,14 +125,6 @@ jobs:
     name: build
     runs-on: ubuntu-22.04
 
-    strategy:
-      matrix:
-        debug-level: ${{ fromJSON(["release"]) }}
-        include:
-          - debug-level: release
-            flags: --with-debug-level=release
-            suffix: ''
-
     steps:
       - name: 'Checkout the JDK source'
         uses: actions/checkout@v4
@@ -155,7 +147,7 @@ jobs:
         run: >
           bash configure
           --with-conf-name=linux-x64
-          ${{ matrix.flags }}
+          --with-debug-level=release
           --with-version-opt=${GITHUB_ACTOR}-${GITHUB_SHA}
           --with-boot-jdk=${{ steps.bootjdk.outputs.path }}
           --with-jtreg=${{ steps.jtreg.outputs.path }}
@@ -173,22 +165,20 @@ jobs:
         with:
           make-target: 'product-bundles test-bundles ${{ github.event.inputs.make-arguments }}'
           platform: linux-x64
-          debug-suffix: '${{ matrix.suffix }}'
 
       - name: 'Upload bundles'
         uses: ./.github/actions/upload-bundles
         with:
           platform: linux-x64
-          debug-suffix: '${{ matrix.suffix }}'
 
       - name: 'Create Release and Upload Artifacts'
-        if: github.ref == 'refs/heads/main' && matrix.debug-level == 'release'
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v1
         with:
           name: MSJDK17 Build ${{ github.run_number }}
           tag_name: msjdk17-${{ github.run_number }}
           files: |
-            build/linux-x64${{ matrix.suffix }}/bundles/*.tar.gz
-            build/linux-x64${{ matrix.suffix }}/bundles/*.zip
+            build/linux-x64/bundles/*.tar.gz
+            build/linux-x64/bundles/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
