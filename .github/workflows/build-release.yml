@@ -1,179 +1,181 @@
-#
-# Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
-# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-#
-# This code is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License version 2 only, as
-# published by the Free Software Foundation.  Oracle designates this
-# particular file as subject to the "Classpath" exception as provided
-# by Oracle in the LICENSE file that accompanied this code.
-#
-# This code is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-# version 2 for more details (a copy is included in the LICENSE file that
-# accompanied this code).
-#
-# You should have received a copy of the GNU General Public License version
-# 2 along with this work; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
-# or visit www.oracle.com if you need additional information or have any
-# questions.
-#
-
-name: 'Build Release'
-
-on:
-  push:
-    branches-ignore:
-      - master
-      - pr/*
-  workflow_dispatch:
-    inputs:
-      platforms:
-        description: 'Platform(s) to execute on (comma separated, e.g. "linux-x64, macos, aarch64")'
-        required: true
-        default: 'linux-x64'
-      configure-arguments:
-        description: 'Additional configure arguments'
-        required: false
-      make-arguments:
-        description: 'Additional make arguments'
-        required: false
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  prepare:
-    name: 'Prepare the run'
-    runs-on: ubuntu-22.04
-    outputs:
-      linux-x64: ${{ steps.include.outputs.linux-x64 }}
-      linux-x86-hs: ${{ steps.include.outputs.linux-x86-hs }}
-      linux-x64-variants: ${{ steps.include.outputs.linux-x64-variants }}
-      linux-cross-compile: ${{ steps.include.outputs.linux-cross-compile }}
-      macos-x64: ${{ steps.include.outputs.macos-x64 }}
-      macos-aarch64: ${{ steps.include.outputs.macos-aarch64 }}
-      windows-x64: ${{ steps.include.outputs.windows-x64 }}
-      windows-aarch64: ${{ steps.include.outputs.windows-aarch64 }}
-
-    steps:
-      - name: 'Checkout the scripts'
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github
-            make/conf/github-actions.conf
-
-      # TODO: Now that we are checking out the repo scripts, we can put the following code
-      # into a separate file
-      - name: 'Check what jobs to run'
-        id: include
-        run: |
-          # Determine which platform jobs to run
-
-          # Returns 'true' if the input platform list matches any of the platform monikers given as argument,
-          # 'false' otherwise.
-          # arg $1: platform name or names to look for
-          function check_platform() {
-            if [[ $GITHUB_EVENT_NAME == workflow_dispatch ]]; then
-              input='${{ github.event.inputs.platforms }}'
-            elif [[ $GITHUB_EVENT_NAME == push ]]; then
-              if [[ '${{ !secrets.JDK_SUBMIT_FILTER || startsWith(github.ref, 'refs/heads/submit/') }}' == 'false' ]]; then
-                # If JDK_SUBMIT_FILTER is set, and this is not a "submit/" branch, don't run anything
-                >&2 echo 'JDK_SUBMIT_FILTER is set and not a "submit/" branch'
-                echo 'false'
-                return
-              else
-                input='${{ secrets.JDK_SUBMIT_PLATFORMS }}'
-              fi
-            fi
-
-            normalized_input="$(echo ,$input, | tr -d ' ')"
-            if [[ "$normalized_input" == ",," ]]; then
-              # For an empty input, assume all platforms should run
-              echo 'true'
-              return
-            else
-              # Check for all acceptable platform names
-              for part in $* ; do
-                if echo "$normalized_input" | grep -q -e ",$part," ; then
-                  echo 'true'
-                  return
-                fi
-              done
-            fi
-
-            echo 'false'
-          }
-
-          echo "linux-x64=$(check_platform linux-x64 linux x64)" >> $GITHUB_OUTPUT
-          echo "linux-x86-hs=$(check_platform linux-x86-hs linux x86)" >> $GITHUB_OUTPUT
-          echo "linux-x64-variants=$(check_platform linux-x64-variants variants)" >> $GITHUB_OUTPUT
-          echo "linux-cross-compile=$(check_platform linux-cross-compile cross-compile)" >> $GITHUB_OUTPUT
-          echo "macos-x64=$(check_platform macos-x64 macos x64)" >> $GITHUB_OUTPUT
-          echo "macos-aarch64=$(check_platform macos-aarch64 macos aarch64)" >> $GITHUB_OUTPUT
-          echo "windows-x64=$(check_platform windows-x64 windows x64)" >> $GITHUB_OUTPUT
-          echo "windows-aarch64=$(check_platform windows-aarch64 windows aarch64)" >> $GITHUB_OUTPUT
-
-  build-linux:
-    needs: prepare
-    name: build
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: 'Checkout the JDK source'
-        uses: actions/checkout@v4
-
-      - name: 'Get the BootJDK'
-        id: bootjdk
-        uses: ./.github/actions/get-bootjdk
-        with:
-          platform: linux-x64
-
-      # Upgrading apt to solve libc6 installation bugs, see JDK-8260460.
-      - name: 'Install toolchain and dependencies'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --only-upgrade apt
-          sudo apt-get install gcc-10 g++-10 libxrandr-dev${{ steps.arch.outputs.suffix }} libxtst-dev${{ steps.arch.outputs.suffix }} libcups2-dev${{ steps.arch.outputs.suffix }} libasound2-dev${{ steps.arch.outputs.suffix }}
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10
-
-      - name: 'Configure'
-        run: >
-          bash configure
-          --with-conf-name=linux-x64
-          --with-debug-level=release
-          --with-version-opt=${GITHUB_ACTOR}-${GITHUB_SHA}
-          --with-boot-jdk=${{ steps.bootjdk.outputs.path }}
-          --with-zlib=system
-          ${{ github.event.inputs.configure-arguments }} || (
-          echo "Dumping config.log:" &&
-          cat config.log &&
-          exit 1)
-
-      - name: 'Build'
-        id: build
-        uses: ./.github/actions/do-build
-        with:
-          make-target: 'product-bundles test-bundles ${{ github.event.inputs.make-arguments }}'
-          platform: linux-x64
-
-      - name: 'Upload bundles'
-        uses: ./.github/actions/upload-bundles
-        with:
-          platform: linux-x64
-
-      - name: 'Create Release and Upload Artifacts'
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
-        with:
-          name: MSJDK17 Build ${{ github.run_number }}
-          tag_name: msjdk17-${{ github.run_number }}
-          files: build/linux-x64/bundles/*.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: Build and Release JDK for All Platforms  
+  
+on:  
+  push:  
+    tags:  
+      - 'v*'  
+  workflow_dispatch:  
+    inputs:  
+      release_name:  
+        description: 'Release name'  
+        required: true  
+        default: 'MSJDK17-Release'  
+  
+jobs:  
+  build-matrix:  
+    strategy:  
+      fail-fast: false  
+      matrix:  
+        include:  
+          # Linux builds  
+          - os: ubuntu-20.04  
+            platform: linux  
+            arch: x64  
+            configure_args: --with-debug-level=release  
+          - os: ubuntu-20.04  
+            platform: linux  
+            arch: aarch64  
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-linux-gnu  
+          - os: ubuntu-20.04  
+            platform: linux  
+            arch: arm32  
+            configure_args: --with-debug-level=release --openjdk-target=arm-linux-gnueabihf  
+          - os: ubuntu-20.04  
+            platform: linux  
+            arch: ppc64le  
+            configure_args: --with-debug-level=release --openjdk-target=ppc64le-linux-gnu  
+          - os: ubuntu-20.04  
+            platform: linux  
+            arch: s390x  
+            configure_args: --with-debug-level=release --openjdk-target=s390x-linux-gnu  
+            
+          # macOS builds  
+          - os: macos-11  
+            platform: macos  
+            arch: x64  
+            configure_args: --with-debug-level=release  
+          - os: macos-11  
+            platform: macos  
+            arch: aarch64  
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-apple-darwin  
+            
+          # Windows builds  
+          - os: windows-2019  
+            platform: windows  
+            arch: x64  
+            configure_args: --with-debug-level=release  
+          - os: windows-2019  
+            platform: windows  
+            arch: x86  
+            configure_args: --with-debug-level=release --openjdk-target=x86-pc-windows-msvc  
+          - os: windows-2019  
+            platform: windows  
+            arch: aarch64  
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-pc-windows-msvc  
+  
+    runs-on: ${{ matrix.os }}  
+      
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}  
+      
+    steps:  
+      - name: Checkout code  
+        uses: actions/checkout@v3  
+          
+      - name: Set up build environment (Linux)  
+        if: matrix.platform == 'linux'  
+        run: |  
+          sudo apt-get update  
+          sudo apt-get install -y build-essential autoconf zip unzip libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev  
+            
+      - name: Set up build environment (macOS)  
+        if: matrix.platform == 'macos'  
+        run: |  
+          brew install autoconf  
+            
+      - name: Set up build environment (Windows)  
+        if: matrix.platform == 'windows'  
+        uses: microsoft/setup-msbuild@v1.1  
+          
+      - name: Set up cross-compilation toolchain  
+        if: matrix.arch != 'x64' && matrix.platform == 'linux'  
+        run: |  
+          case "${{ matrix.arch }}" in  
+            aarch64) sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ;;  
+            arm32) sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf ;;  
+            ppc64le) sudo apt-get install -y gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu ;;  
+            s390x) sudo apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu ;;  
+          esac  
+            
+      - name: Download and set up Boot JDK  
+        run: |  
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
+            curl -L -o bootjdk.zip "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_windows-x64_bin.zip"  
+            unzip bootjdk.zip  
+            echo "BOOT_JDK=$(pwd)/jdk-16" >> $GITHUB_ENV  
+          elif [[ "${{ matrix.platform }}" == "macos" ]]; then  
+            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_osx-x64_bin.tar.gz"  
+            tar xzf bootjdk.tar.gz  
+            echo "BOOT_JDK=$(pwd)/jdk-16.jdk/Contents/Home" >> $GITHUB_ENV  
+          else  
+            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_linux-x64_bin.tar.gz"  
+            tar xzf bootjdk.tar.gz  
+            echo "BOOT_JDK=$(pwd)/jdk-16" >> $GITHUB_ENV  
+          fi  
+        shell: bash  
+          
+      - name: Configure build  
+        run: |  
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
+            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }} --with-toolchain-type=microsoft  
+          else  
+            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }}  
+          fi  
+        shell: bash  
+          
+      - name: Build JDK  
+        run: |  
+          make images  
+        shell: bash  
+          
+      - name: Create distribution archive  
+        run: |  
+          cd build/*/images  
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
+            zip -r ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip jdk  
+          else  
+            tar czf ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz jdk  
+          fi  
+        shell: bash  
+          
+      - name: Upload build artifact  
+        uses: actions/upload-artifact@v3  
+        with:  
+          name: msjdk17-${{ matrix.platform }}-${{ matrix.arch }}  
+          path: |  
+            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip  
+            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz  
+  
+  create-release:  
+    needs: build-matrix  
+    runs-on: ubuntu-latest  
+    if: startsWith(github.ref, 'refs/tags/')  
+      
+    steps:  
+      - name: Download all artifacts  
+        uses: actions/download-artifact@v3  
+          
+      - name: Create Release  
+        id: create_release  
+        uses: actions/create-release@v1  
+        env:  
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+        with:  
+          tag_name: ${{ github.ref_name }}  
+          release_name: ${{ github.event.inputs.release_name || format('MSJDK17 Release {0}', github.ref_name) }}  
+          draft: false  
+          prerelease: false  
+            
+      - name: Upload Release Assets  
+        run: |  
+          for artifact_dir in msjdk17-*/; do  
+            for file in "$artifact_dir"*; do  
+              if [[ -f "$file" ]]; then  
+                echo "Uploading $file"  
+                curl -X POST \  
+                  -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \  
+                  -H "Content-Type: application/octet-stream" \  
+                  --data-binary @"$file" \  
+                  "${{ steps.create_release.outputs.upload_url }}=$(basename "$file")"  
+              fi  
+            done  
+          done
