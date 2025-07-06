@@ -174,8 +174,6 @@ jobs:
         with:
           name: MSJDK17 Build ${{ github.run_number }}
           tag_name: msjdk17-${{ github.run_number }}
-          files: |
-            build/linux-x64/bundles/*.tar.gz
-            build/linux-x64/bundles/*.zip
+          files: build/linux-x64/bundles/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
