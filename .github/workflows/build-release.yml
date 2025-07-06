@@ -1,201 +1,198 @@
-name: Build and Release JDK for All Platforms  
+name: Build and Release JDK for All Platforms
 
 on:
   push:
     branches-ignore:
       - master
       - pr/*
-  workflow_dispatch:  
-    inputs:  
-      release_name:  
-        description: 'Release name'  
-        required: true  
-        default: 'MSJDK17-Release'  
-  
-jobs:  
-  build-matrix:  
-    strategy:  
-      fail-fast: false  
-      matrix:  
-        include:  
-          # Linux builds  
-          - os: ubuntu-22.04  
-            platform: linux  
-            arch: x64  
-            configure_args: --with-debug-level=release  
-          - os: ubuntu-22.04  
-            platform: linux  
-            arch: aarch64  
-            configure_args: --with-debug-level=release --openjdk-target=aarch64-linux-gnu  
-          - os: ubuntu-22.04  
-            platform: linux  
-            arch: arm32  
-            configure_args: --with-debug-level=release --openjdk-target=arm-linux-gnueabihf  
-          - os: ubuntu-22.04  
-            platform: linux  
-            arch: ppc64le  
-            configure_args: --with-debug-level=release --openjdk-target=ppc64le-linux-gnu  
-          - os: ubuntu-22.04  
-            platform: linux  
-            arch: s390x  
-            configure_args: --with-debug-level=release --openjdk-target=s390x-linux-gnu  
-            
-          # macOS builds  
-          - os: macos-14  
-            platform: macos  
-            arch: x64  
-            configure_args: --with-debug-level=release  
-          - os: macos-14  
-            platform: macos  
-            arch: aarch64  
-            configure_args: --with-debug-level=release --openjdk-target=aarch64-apple-darwin  
-            
-          # Windows builds  
-          - os: windows-2025 
-            platform: windows  
-            arch: x64  
-            configure_args: --with-debug-level=release  
-          - os: windows-2025
-            platform: windows  
-            arch: x86  
-            configure_args: --with-debug-level=release --openjdk-target=x86-pc-windows-msvc  
-          - os: windows-2025
-            platform: windows  
-            arch: aarch64  
-            configure_args: --with-debug-level=release --openjdk-target=aarch64-pc-windows-msvc  
-  
-    runs-on: ${{ matrix.os }}  
-      
-    name: Build ${{ matrix.platform }}-${{ matrix.arch }}  
-      
-    steps:  
-      - name: Checkout code  
-        uses: actions/checkout@v4  
-          
-      - name: Set up build environment (Linux)  
-        if: matrix.platform == 'linux'  
-        run: |  
-          sudo apt-get update  
-          sudo apt-get install -y build-essential autoconf zip unzip libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev  
-            
-      - name: Set up build environment (macOS)  
-        if: matrix.platform == 'macos'  
-        run: |  
-          brew install autoconf  
-            
-      - name: 'Check toolchain installed (Windows)'
-        if: matrix.platform == 'windows'  
-        shell: bash
-        id: toolchain-check
-        run: |
-          set +e
-          '/c/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/vc/auxiliary/build/vcvars64.bat' -vcvars_ver=${{ inputs.msvc-toolset-version }}
-          if [ $? -eq 0 ]; then
-            echo "Toolchain is already installed"
-            echo "toolchain-installed=true" >> $GITHUB_OUTPUT
-          else
-            echo "Toolchain is not yet installed"
-            echo "toolchain-installed=false" >> $GITHUB_OUTPUT
-          fi
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name'
+        required: true
+        default: 'MSJDK17-Release'
 
-      - name: 'Install toolchain and dependencies (Windows)'
-        if: steps.toolchain-check.outputs.toolchain-installed != 'true' && matrix.platform == 'windows'  
+jobs:
+  build-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+            configure_args: --with-debug-level=release
+          - os: ubuntu-22.04
+            platform: linux
+            arch: aarch64
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-linux-gnu
+          - os: ubuntu-22.04
+            platform: linux
+            arch: arm32
+            configure_args: --with-debug-level=release --openjdk-target=arm-linux-gnueabihf
+          - os: ubuntu-22.04
+            platform: linux
+            arch: ppc64le
+            configure_args: --with-debug-level=release --openjdk-target=ppc64le-linux-gnu
+          - os: ubuntu-22.04
+            platform: linux
+            arch: s390x
+            configure_args: --with-debug-level=release --openjdk-target=s390x-linux-gnu
+            
+          # macOS builds
+          - os: macos-14
+            platform: macos
+            arch: x64
+            configure_args: --with-debug-level=release
+          - os: macos-14
+            platform: macos
+            arch: aarch64
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-apple-darwin
+            
+          # Windows builds
+          - os: windows-2022
+            platform: windows
+            arch: x64
+            configure_args: --with-debug-level=release
+          - os: windows-2022
+            platform: windows
+            arch: x86
+            configure_args: --with-debug-level=release --openjdk-target=x86-pc-windows-msvc
+          - os: windows-2022
+            platform: windows
+            arch: aarch64
+            configure_args: --with-debug-level=release --openjdk-target=aarch64-pc-windows-msvc
+
+    runs-on: ${{ matrix.os }}
+    
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Linux environment setup
+      - name: Set up build environment (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf zip unzip \
+            libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev \
+            libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev \
+            libfreetype6-dev pkg-config
+          
+      # macOS environment setup  
+      - name: Set up build environment (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install autoconf
+          
+      # Windows environment setup
+      - name: Set up build environment (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install autoconf-archive -y
+          # Install Visual Studio Build Tools if needed
+          if (!(Test-Path "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC")) {
+            choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools" -y
+          }
         shell: powershell
+
+      # Cross-compilation toolchain setup for Linux
+      - name: Set up cross-compilation toolchain
+        if: matrix.arch != 'x64' && matrix.platform == 'linux'
         run: |
-          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" `
-            modify --quiet --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise" `
-            --add "Microsoft.VisualStudio.Component.VC.${{ inputs.msvc-toolset-version }}.${{ inputs.msvc-toolset-architecture }}"
+          case "${{ matrix.arch }}" in
+            aarch64) 
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+              ;;
+            arm32) 
+              sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+              ;;
+            ppc64le) 
+              sudo apt-get install -y gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu
+              ;;
+            s390x) 
+              sudo apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu
+              ;;
+          esac
+          
+      # Boot JDK setup
+      - name: Download and set up Boot JDK
+        run: |
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            curl -L -o bootjdk.zip "https://download.java.net/java/GA/jdk17/0d483333a00540d886896bac774ff48b/35/GPL/openjdk-17_windows-x64_bin.zip"
+            unzip bootjdk.zip
+            echo "BOOT_JDK=$(pwd)/jdk-17" >> $GITHUB_ENV
+          elif [[ "${{ matrix.platform }}" == "macos" ]]; then
+            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk17/0d483333a00540d886896bac774ff48b/35/GPL/openjdk-17_osx-x64_bin.tar.gz"
+            tar xzf bootjdk.tar.gz
+            echo "BOOT_JDK=$(pwd)/jdk-17.jdk/Contents/Home" >> $GITHUB_ENV
+          else
+            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk17/0d483333a00540d886896bac774ff48b/35/GPL/openjdk-17_linux-x64_bin.tar.gz"
+            tar xzf bootjdk.tar.gz
+            echo "BOOT_JDK=$(pwd)/jdk-17" >> $GITHUB_ENV
+          fi
+        shell: bash
+        
+      # Configure build
+      - name: Configure build
+        run: |
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            # Set up Visual Studio environment
+            call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }} --with-toolchain-type=microsoft
+          else
+            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }}
+          fi
+        shell: bash
+        
+      # Build JDK
+      - name: Build JDK
+        run: |
+          make images
+        shell: bash
+        
+      # Create distribution archive
+      - name: Create distribution archive
+        run: |
+          cd build/*/images
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            7z a -tzip ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip jdk
+          else
+            tar czf ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz jdk
+          fi
+        shell: bash
+        
+      # Upload build artifact
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msjdk17-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip
+            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+          retention-days: 30
 
-
-      - name: Set up cross-compilation toolchain  
-        if: matrix.arch != 'x64' && matrix.platform == 'linux'  
-        run: |  
-          case "${{ matrix.arch }}" in  
-            aarch64) sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ;;  
-            arm32) sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf ;;  
-            ppc64le) sudo apt-get install -y gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu ;;  
-            s390x) sudo apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu ;;  
-          esac  
-            
-      - name: Download and set up Boot JDK  
-        run: |  
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
-            curl -L -o bootjdk.zip "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_windows-x64_bin.zip"  
-            unzip bootjdk.zip  
-            echo "BOOT_JDK=$(pwd)/jdk-16" >> $GITHUB_ENV  
-          elif [[ "${{ matrix.platform }}" == "macos" ]]; then  
-            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_osx-x64_bin.tar.gz"  
-            tar xzf bootjdk.tar.gz  
-            echo "BOOT_JDK=$(pwd)/jdk-16.jdk/Contents/Home" >> $GITHUB_ENV  
-          else  
-            curl -L -o bootjdk.tar.gz "https://download.java.net/java/GA/jdk16/7863447f0ab643c585b9bdebf67c69db/36/GPL/openjdk-16_linux-x64_bin.tar.gz"  
-            tar xzf bootjdk.tar.gz  
-            echo "BOOT_JDK=$(pwd)/jdk-16" >> $GITHUB_ENV  
-          fi  
-        shell: bash  
-          
-      - name: Configure build  
-        run: |  
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
-            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }} --with-toolchain-type=microsoft  
-          else  
-            bash configure --with-boot-jdk="$BOOT_JDK" ${{ matrix.configure_args }}  
-          fi  
-        shell: bash  
-          
-      - name: Build JDK  
-        run: |  
-          make images  
-        shell: bash  
-          
-      - name: Create distribution archive  
-        run: |  
-          cd build/*/images  
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then  
-            zip -r ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip jdk  
-          else  
-            tar czf ../../../msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz jdk  
-          fi  
-        shell: bash  
-          
-      - name: Upload build artifact  
-        uses: actions/upload-artifact@v4  
-        with:  
-          name: msjdk17-${{ matrix.platform }}-${{ matrix.arch }}  
-          path: |  
-            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.zip  
-            msjdk17-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz  
-  
-  create-release:  
-    needs: build-matrix  
-    runs-on: ubuntu-latest  
-    if: startsWith(github.ref, 'refs/tags/')  
-      
-    steps:  
-      - name: Download all artifacts  
+  create-release:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-          
-      - name: Create Release  
-        id: create_release  
-        uses: elgohr/Github-Release-Action@v5
-        env:  
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-        with:  
-          tag: ${{ github.ref_name }}  
-          title: ${{ github.event.inputs.release_name || format('MSJDK17 Release {0}', github.ref_name) }}   
-          prerelease: false  
-            
-      - name: Upload Release Assets  
-        run: |  
-          for artifact_dir in msjdk17-*/; do  
-            for file in "$artifact_dir"*; do  
-              if [[ -f "$file" ]]; then  
-                echo "Uploading $file"  
-                curl -X POST \  
-                  -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \  
-                  -H "Content-Type: application/octet-stream" \  
-                  --data-binary @"$file" \  
-                  "${{ steps.create_release.outputs.upload_url }}=$(basename "$file")"  
-              fi  
-            done  
-          done
+        
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.event.inputs.release_name || format('MSJDK17 Release {0}', github.ref_name) }}
+          prerelease: false
+          files: |
+            msjdk17-*/*.zip
+            msjdk17-*/*.tar.gz
