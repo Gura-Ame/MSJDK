@@ -85,6 +85,7 @@ jobs:
             
       - name: 'Check toolchain installed (Windows)'
         if: matrix.platform == 'windows'  
+        shell: bash
         id: toolchain-check
         run: |
           set +e
