@@ -1,9 +1,10 @@
 name: Build and Release JDK for All Platforms  
-  
-on:  
-  push:  
-    tags:  
-      - 'v*'  
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - pr/*
   workflow_dispatch:  
     inputs:  
       release_name:  
