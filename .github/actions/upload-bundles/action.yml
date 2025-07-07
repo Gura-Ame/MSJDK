@@ -40,6 +40,13 @@ runs:
     - name: 'Determine bundle names'
       id: bundles
       run: |
+        echo "=== Directory structure under ./build ==="
+        if [ -d build ]; then
+          find build -print | sed 's/^/  /'
+        else
+          echo "  (no build directory found)"
+        fi
+
         # Rename bundles to consistent names
         jdk_bundle_zip="$(ls build/*/bundles/jdk-*_bin${{ inputs.debug-suffix }}.zip 2> /dev/null || true)"
         jdk_bundle_tar_gz="$(ls build/*/bundles/jdk-*_bin${{ inputs.debug-suffix }}.tar.gz 2> /dev/null || true)"
