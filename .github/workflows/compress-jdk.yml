@@ -81,6 +81,11 @@ jobs:
           else
             echo "錯誤: 找不到 build 目錄 ${BUILD_PATH}"
             echo "當前目錄結構："
+            if [ -d build ]; then
+              find build -print | sed 's/^/  /'
+            else
+              echo "  (no build directory found)"
+            fi
             find . -type d -name "*jdk*" || echo "沒有找到包含 jdk 的目錄"
             exit 1
           fi

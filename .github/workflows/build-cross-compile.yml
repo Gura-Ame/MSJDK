@@ -190,10 +190,8 @@ jobs:
           platform: linux-${{ matrix.target-cpu }}
         if: steps.create-sysroot.outcome == 'success' || steps.get-cached-sysroot.outputs.cache-hit == 'true'
 
-  compress-jdk:
-    name: 'Compress JDK'
-    needs: build-cross-compile  # 依賴於 build job
-    uses: ./.github/workflows/compress-jdk.yml
-    with:
-      platform: ${{ inputs.platform }}
-    if: success()  # 只有在 build 成功時才執行
+      - name: 'Compress JDK'
+        id: cjdk
+        uses: ./.github/workflows/compress-jdk.yml
+        with:
+          platform: ${{ inputs.platform }}
