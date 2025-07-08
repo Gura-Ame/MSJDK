@@ -146,7 +146,7 @@ jobs:
 
   compress-jdk:
     name: 'Compress JDK'
-    needs: build  # 依賴於 build job
+    needs: build-linux  # 依賴於 build job
     uses: ./.github/workflows/compress-jdk.yml
     with:
       platform: ${{ inputs.platform }}
