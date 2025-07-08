@@ -127,6 +127,6 @@ jobs:
 
       - name: 'Compress JDK'
         id: cjdk
-        uses: ./.github/workflows/compress-jdk.yml
+        uses: ./.github/actions/compress-jdk
         with:
           platform: ${{ inputs.platform }}
