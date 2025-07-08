@@ -189,3 +189,11 @@ jobs:
           make-target: 'hotspot ${{ inputs.make-arguments }}'
           platform: linux-${{ matrix.target-cpu }}
         if: steps.create-sysroot.outcome == 'success' || steps.get-cached-sysroot.outputs.cache-hit == 'true'
+
+  compress-jdk:
+    name: 'Compress JDK'
+    needs: build  # 依賴於 build job
+    uses: ./.github/actions/compress-jdk
+    with:
+      platform: ${{ inputs.platform }}
+    if: success()  # 只有在 build 成功時才執行

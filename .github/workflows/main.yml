@@ -325,6 +325,61 @@ jobs:
       bootjdk-platform: windows-x64
       runs-on: windows-2022
 
+  # 建立 GitHub Release
+  create-release:
+    name: 'Create GitHub Release'
+    runs-on: ubuntu-22.04
+    if: always()
+    needs:
+      - build-linux-x64
+      - build-linux-x86-hs
+      - build-linux-cross-compile
+      - build-macos-x64
+      - build-macos-aarch64
+      - build-windows-x64
+      - build-windows-aarch64
+    
+    steps:
+      - name: 'Get current date'
+        id: date
+        run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: 'Download all JDK artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: jdk-*-*
+          merge-multiple: true
+
+      - name: 'List downloaded files'
+        run: ls -la msjdk17.*.zip
+
+      - name: 'Create Release'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "msjdk17-${{ steps.date.outputs.date }}"
+          name: "MS JDK 17 - ${{ steps.date.outputs.date }}"
+          body: |
+            MS JDK 17 Build - ${{ steps.date.outputs.date }}
+            
+            Generated from commit: ${{ github.sha }}
+            
+            ## Available platforms:
+            - Linux x64
+            - Linux x86
+            - Linux Cross-compile
+            - macOS x64
+            - macOS aarch64
+            - Windows x64
+            - Windows aarch64
+            
+            ## Installation
+            Download the appropriate zip file for your platform and extract it.
+          files: msjdk17.*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Remove bundles so they are not misconstrued as binary distributions from the JDK project
   remove-bundles:
     name: 'Remove bundle artifacts'

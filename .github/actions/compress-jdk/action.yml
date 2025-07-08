@@ -1,0 +1,94 @@
+name: 'Compress JDK'
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Platform name (e.g., linux-x64, windows-x64)'
+        required: true
+        type: string
+      build-path:
+        description: 'Build path (default: build/{platform}/jdk)'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      zip-name:
+        description: 'Generated ZIP file name'
+        value: ${{ jobs.compress-jdk.outputs.zip-name }}
+      artifact-name:
+        description: 'Artifact name'
+        value: ${{ jobs.compress-jdk.outputs.artifact-name }}
+
+jobs:
+  compress-jdk:
+    name: 'Compress JDK for ${{ inputs.platform }}'
+    runs-on: ubuntu-22.04
+    outputs:
+      zip-name: ${{ steps.compress.outputs.zip-name }}
+      artifact-name: ${{ steps.compress.outputs.artifact-name }}
+    
+    steps:
+      - name: 'Download build artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          name: bundles-${{ inputs.platform }}
+          path: ./
+      
+      - name: 'Get current date'
+        id: date
+        run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: 'Compress JDK for release'
+        id: compress
+        run: |
+          # 建立壓縮檔案名稱
+          ZIP_NAME="msjdk17.${{ inputs.platform }}.${{ steps.date.outputs.date }}.zip"
+          ARTIFACT_NAME="jdk-${{ inputs.platform }}-${{ steps.date.outputs.date }}"
+          
+          # 設定 build 路徑
+          if [ -n "${{ inputs.build-path }}" ]; then
+            BUILD_PATH="${{ inputs.build-path }}"
+          else
+            BUILD_PATH="build/${{ inputs.platform }}"
+          fi
+          
+          echo "Build path: ${BUILD_PATH}"
+          echo "ZIP name: ${ZIP_NAME}"
+          
+          # 檢查並進入 build 目錄
+          if [ -d "${BUILD_PATH}" ]; then
+            cd "${BUILD_PATH}"
+            
+            # 壓縮 jdk 資料夾內容
+            if [ -d "jdk" ]; then
+              echo "正在壓縮 jdk 資料夾..."
+              zip -r "../../${ZIP_NAME}" jdk/
+              echo "壓縮完成: ${ZIP_NAME}"
+              
+              # 顯示壓縮檔案大小
+              ls -lh "../../${ZIP_NAME}"
+              
+              # 設定 outputs
+              echo "zip-name=${ZIP_NAME}" >> $GITHUB_OUTPUT
+              echo "artifact-name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+            else
+              echo "錯誤: 在 ${BUILD_PATH} 中找不到 jdk 資料夾"
+              find . -name "jdk" -type d || echo "整個工作目錄中都沒有找到 jdk 資料夾"
+              exit 1
+            fi
+          else
+            echo "錯誤: 找不到 build 目錄 ${BUILD_PATH}"
+            echo "當前目錄結構："
+            find . -type d -name "*jdk*" || echo "沒有找到包含 jdk 的目錄"
+            exit 1
+          fi
+        shell: bash
+
+      - name: 'Upload JDK ZIP as artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.compress.outputs.artifact-name }}
+          path: ${{ steps.compress.outputs.zip-name }}
+          retention-days: 30

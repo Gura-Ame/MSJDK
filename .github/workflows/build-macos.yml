@@ -124,3 +124,11 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           debug-suffix: '${{ matrix.suffix }}'
+
+  compress-jdk:
+    name: 'Compress JDK'
+    needs: build  # 依賴於 build job
+    uses: ./.github/actions/compress-jdk
+    with:
+      platform: ${{ inputs.platform }}
+    if: success()  # 只有在 build 成功時才執行
