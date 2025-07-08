@@ -232,7 +232,7 @@ jobs:
   build-macos-x64:
     name: macos-x64
     needs: prepare
-    uses: ./.github/workflows/build-macos.yml@main
+    uses: ./.github/workflows/build-macos.yml
     with:
       platform: macos-x64
       runs-on: 'macos-13'
