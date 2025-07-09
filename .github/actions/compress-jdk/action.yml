@@ -21,12 +21,6 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: 'Download build artifacts'
-      uses: actions/download-artifact@v4
-      with:
-        name: bundles-${{ inputs.platform }}
-        path: ./
-    
     - name: 'Get current date'
       id: date
       run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
