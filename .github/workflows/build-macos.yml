@@ -28,6 +28,9 @@ name: 'Build (macos)'
 on:
   workflow_call:
     inputs:
+      package-name:
+        required: true
+        type: string
       platform:
         required: true
         type: string
@@ -130,3 +133,4 @@ jobs:
         uses: ./.github/actions/compress-jdk
         with:
           platform: ${{ inputs.platform }}
+          package-name: ${{ inputs.package-name }}

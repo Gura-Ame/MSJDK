@@ -190,8 +190,9 @@ jobs:
           platform: linux-${{ matrix.target-cpu }}
         if: steps.create-sysroot.outcome == 'success' || steps.get-cached-sysroot.outputs.cache-hit == 'true'
 
-      - name: 'Compress JDK'
-        id: cjdk
-        uses: ./.github/actions/compress-jdk
-        with:
-          platform: ${{ inputs.platform }}
+      # Unsupport 
+      # - name: 'Compress JDK'
+      #   id: cjdk
+      #   uses: ./.github/actions/compress-jdk
+      #   with:
+      #     platform: ${{ inputs.platform }}

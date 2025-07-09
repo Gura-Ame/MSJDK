@@ -2,6 +2,9 @@ name: 'Compress JDK'
 description: 'Compress JDK build artifacts'
 
 inputs:
+  package-name:
+    description: 'Package name (e.g., linux-x64-hs-optimized, windows-x64)'
+    required: true
   platform:
     description: 'Platform name (e.g., linux-x64, windows-x64)'
     required: true
