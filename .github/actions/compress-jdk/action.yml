@@ -33,8 +33,8 @@ runs:
       id: compress
       run: |
         # 建立壓縮檔案名稱
-        ZIP_NAME="msjdk17.${{ inputs.platform }}.${{ steps.date.outputs.date }}.zip"
-        ARTIFACT_NAME="jdk-${{ inputs.platform }}-${{ steps.date.outputs.date }}"
+        ZIP_NAME="msjdk17.${{ inputs.package-name }}.${{ steps.date.outputs.date }}.zip"
+        ARTIFACT_NAME="jdk-${{ inputs.package-name }}-${{ steps.date.outputs.date }}"
         
         # 設定 build 路徑
         if [ -n "${{ inputs.build-path }}" ]; then
