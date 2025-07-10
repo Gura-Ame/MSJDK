@@ -162,4 +162,4 @@ jobs:
         uses: ./.github/actions/compress-jdk
         with:
           platform: ${{ inputs.platform }}
-          package-name: ${{ inputs.package-name }}
+          package-name: '${{ inputs.package-name }}${{ matrix.suffix }}'
