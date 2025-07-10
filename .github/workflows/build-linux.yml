@@ -151,5 +151,5 @@ jobs:
         id: cjdk
         uses: ./.github/actions/compress-jdk
         with:
-          platform: '${{ inputs.platform }}${{ matrix.suffix }}'
+          platform: ${{ inputs.platform }}
           package-name: ${{ inputs.package-name }}
